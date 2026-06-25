@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة التحكم — المصمم العراقي</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+/* ============ DESIGN TOKENS ============ */
+:root{
+  --bg:#0B0D10;
+  --bg-soft:#11141A;
+  --surface:rgba(255,255,255,0.04);
+  --surface-strong:rgba(255,255,255,0.07);
+  --border:rgba(255,255,255,0.09);
+  --border-strong:rgba(255,255,255,0.16);
+  --text:#F3F5F7;
+  --text-dim:#9AA3AF;
+  --text-faint:#5C6470;
+  --blue:#2B6CFF;
+  --violet:#7C3AED;
+  --gold:#D4AF37;
+  --gold-soft:#E8C766;
+  --danger:#EF4444;
+  --success:#22C55E;
+  --grad-brand: linear-gradient(135deg, var(--blue), var(--violet));
+  --grad-gold: linear-gradient(135deg, #B98D1E, var(--gold-soft));
+  --radius:16px;
+  --radius-sm:10px;
+  --shadow-lg: 0 24px 60px -20px rgba(0,0,0,0.6);
+  --font-display:'Cairo', sans-serif;
+  --font-body:'Tajawal', sans-serif;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
+  overflow-x:hidden;
+  position:relative;
+}
+body::before{
+  content:'';
+  position:fixed; inset:0;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(43,108,255,0.16), transparent 45%),
+    radial-gradient(circle at 85% 20%, rgba(124,58,237,0.14), transparent 45%);
+  pointer-events:none;
+  z-index:0;
+}
+h1,h2,h3,h4,.brand,.btn{font-family:var(--font-display);}
+a{color:inherit; text-decoration:none;}
+button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit;}
+img{max-width:100%; display:block;}
+::selection{background:var(--violet); color:#fff;}
+:focus-visible{outline:2px solid var(--blue); outline-offset:2px;}
+
+.container{max-width:1180px; margin:0 auto; padding:0 24px;}
+
+/* ============ SCROLLBAR ============ */
+::-webkit-scrollbar{width:10px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:10px;}
+
+/* ============ BUTTONS ============ */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:12px 24px; border-radius:12px;
+  font-size:15px; font-weight:700;
+  transition:.2s; white-space:nowrap;
+}
+.btn-primary{
+  background:var(--grad-brand); color:#fff;
+  box-shadow:0 10px 26px -8px rgba(43,108,255,0.55);
+}
+.btn-primary:hover{transform:translateY(-2px); box-shadow:0 14px 30px -8px rgba(43,108,255,0.7);}
+.btn-secondary{
+  background:var(--surface); color:var(--text); border:1px solid var(--border-strong);
+}
+.btn-secondary:hover{background:var(--surface-strong);}
+.btn-block{width:100%;}
+.btn-danger{background:rgba(239,68,68,0.12); color:#FCA5A5; border:1px solid rgba(239,68,68,0.3);}
+.btn-danger:hover{background:rgba(239,68,68,0.2);}
+.btn:disabled{opacity:.5; cursor:not-allowed; transform:none !important;}
+.icon-btn{
+  width:38px; height:38px; border-radius:99px;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--surface); border:1px solid var(--border);
+  transition:.2s;
+}
+.icon-btn:hover{background:var(--surface-strong);}
+
+/* ============ FORMS ============ */
+.section{padding:36px 0 64px; position:relative; z-index:1;}
+.form-group{margin-bottom:16px; text-align:right;}
+.form-group label{display:block; font-size:13px; font-weight:700; color:var(--text-dim); margin-bottom:7px;}
+input, textarea, select{
+  width:100%; padding:12px 14px; border-radius:10px;
+  background:var(--bg-soft); border:1px solid var(--border-strong);
+  color:var(--text); font-size:14.5px; font-family:inherit;
+  transition:.2s;
+}
+input:focus, textarea:focus, select:focus{border-color:var(--blue); background:rgba(43,108,255,0.06);}
+input::placeholder, textarea::placeholder{color:var(--text-faint);}
+textarea{resize:vertical; min-height:90px;}
+.field-error{color:#FCA5A5; font-size:12.5px; margin-top:6px;}
+.field-hint{color:var(--text-faint); font-size:12.5px; margin-top:6px;}
+
+/* ============ MODAL (تعديل البطاقة) ============ */
+.modal-overlay{
+  position:fixed; inset:0; z-index:1000;
+  background:rgba(0,0,0,0.65); backdrop-filter:blur(4px);
+  display:flex; align-items:center; justify-content:center;
+  padding:20px; opacity:0; pointer-events:none; transition:.25s;
+}
+.modal-overlay.open{opacity:1; pointer-events:auto;}
+.modal-box{
+  background:var(--bg-soft); border:1px solid var(--border-strong);
+  border-radius:18px; padding:30px; width:100%; max-width:420px;
+  box-shadow:var(--shadow-lg);
+  transform:translateY(16px) scale(0.98); transition:.25s;
+  max-height:88vh; overflow-y:auto;
+}
+.modal-overlay.open .modal-box{transform:translateY(0) scale(1);}
+.modal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;}
+.modal-head h3{font-size:19px; font-weight:800;}
+.modal-close{
+  width:32px; height:32px; border-radius:99px; background:var(--surface);
+  display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--text-dim);
+}
+.modal-close:hover{background:var(--surface-strong); color:var(--text);}
+
+/* ============ TOAST ============ */
+.toast-wrap{
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+  z-index:2000; display:flex; flex-direction:column; gap:10px; align-items:center;
+  width:100%; max-width:380px; padding:0 16px;
+}
+.toast{
+  display:flex; align-items:center; gap:10px;
+  background:var(--bg-soft); border:1px solid var(--border-strong);
+  padding:13px 18px; border-radius:12px; font-size:14px; font-weight:600;
+  box-shadow:var(--shadow-lg);
+  animation:toast-in .25s ease;
+  width:100%;
+}
+@keyframes toast-in{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+.toast.success{border-color:rgba(34,197,94,0.4);}
+.toast.error{border-color:rgba(239,68,68,0.4);}
+.toast .toast-icon{font-size:16px; flex-shrink:0;}
+
+/* ============ ADMIN SHELL ============ */
+.admin-shell{display:flex; min-height:100vh;}
+.admin-sidebar{
+  width:240px; flex-shrink:0; background:var(--bg-soft); border-left:1px solid var(--border);
+  padding:24px 16px; position:sticky; top:0; height:100vh; display:flex; flex-direction:column; gap:6px;
+}
+.admin-sidebar .brand{
+  display:flex; align-items:center; gap:10px;
+  font-size:17px; font-weight:800; letter-spacing:-0.01em;
+  padding:0 10px 22px;
+}
+.brand-mark{
+  width:36px; height:36px; border-radius:10px;
+  background:var(--grad-brand);
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px; font-weight:900; color:#fff;
+  box-shadow:0 6px 18px -6px rgba(43,108,255,0.6);
+  flex-shrink:0;
+}
+.admin-nav-item{
+  display:flex; align-items:center; gap:10px;
+  padding:11px 14px; border-radius:10px; font-size:14px; font-weight:700; color:var(--text-dim);
+  transition:.2s;
+}
+.admin-nav-item:hover{background:var(--surface); color:var(--text);}
+.admin-nav-item.active{background:var(--grad-brand); color:#fff;}
+.admin-main{flex:1; padding:30px 36px; max-width:100%; overflow-x:hidden;}
+.admin-topline{display:flex; align-items:center; justify-content:space-between; margin-bottom:26px; flex-wrap:wrap; gap:12px;}
+.admin-topline h1{font-size:24px; font-weight:800;}
+.stat-row{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px;}
+.stat-card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px;}
+.stat-card .label{font-size:12.5px; color:var(--text-dim); margin-bottom:8px; font-weight:600;}
+.stat-card .value{font-size:26px; font-weight:800;}
+.admin-table-wrap{background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden;}
+table{width:100%; border-collapse:collapse; font-size:13.5px;}
+th{text-align:right; padding:13px 16px; color:var(--text-dim); font-weight:700; font-size:12.5px; border-bottom:1px solid var(--border); white-space:nowrap;}
+td{padding:13px 16px; border-bottom:1px solid var(--border); vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+td img{width:36px; height:36px; border-radius:8px; object-fit:cover;}
+.table-actions{display:flex; gap:6px;}
+.mini-btn{
+  width:30px; height:30px; border-radius:8px; background:var(--surface);
+  border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px;
+  transition:.2s;
+}
+.mini-btn:hover{background:var(--surface-strong);}
+.badge{display:inline-flex; padding:4px 10px; border-radius:99px; font-size:11.5px; font-weight:700;}
+.badge.green{background:rgba(34,197,94,0.12); color:#4ADE80;}
+.badge.gray{background:rgba(255,255,255,0.08); color:var(--text-dim);}
+.badge.gold{background:rgba(212,175,55,0.15); color:var(--gold-soft);}
+.admin-card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:22px; margin-bottom:20px;}
+.admin-card h3{font-size:16px; font-weight:800; margin-bottom:16px;}
+.form-row-2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.code-pill{
+  font-family:monospace; font-weight:800; letter-spacing:0.05em;
+  background:var(--bg); padding:4px 10px; border-radius:6px; font-size:13px;
+}
+
+/* ============ LOADER ============ */
+.page-loader{
+  position:fixed; inset:0; z-index:9999; background:var(--bg);
+  display:flex; align-items:center; justify-content:center; transition:opacity .4s;
+}
+.page-loader .spinner{
+  width:40px; height:40px; border-radius:99px; border:3px solid var(--border);
+  border-top-color:var(--blue); animation:spin 0.8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ============ UTILITIES ============ */
+.text-center{text-align:center;}
+.mt-1{margin-top:8px;} .mt-2{margin-top:16px;}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width:900px){
+  .stat-row{grid-template-columns:repeat(2,1fr);}
+  .admin-sidebar{position:fixed; right:-260px; z-index:500; transition:.25s; box-shadow:var(--shadow-lg);}
+  .admin-sidebar.open{right:0;}
+  .admin-main{padding:24px 18px;}
+  #adminSidebarToggle{display:flex !important;}
+}
+@media (max-width:680px){
+  .form-row-2{grid-template-columns:1fr;}
+  table{font-size:12.5px;}
+  th,td{padding:10px 10px;}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
+}
+</style>
+</head>
+<body>
+
+<div class="page-loader" id="pageLoader"><div class="spinner"></div></div>
+
+<main id="app"></main>
+
+<!-- ============ TOASTS ============ -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- ============ FIREBASE & ADMIN SCRIPT ============ -->
+<script>
+/* =========================================================================
+   المصمم العراقي — admin.html (لوحة التحكم، ملف مستقل)
+   يستخدم نفس مشروع Firebase الذي يستخدمه ملف الموقع index.html
+   ========================================================================= */
+
+/* ---------- 1) Firebase Init ---------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyDBL6OyQBXuZ6E23PbBjiUaG13HHrjfE7Q",
+  authDomain: "myapp-41a95.firebaseapp.com",
+  databaseURL: "https://myapp-41a95-default-rtdb.firebaseio.com",
+  projectId: "myapp-41a95",
+  storageBucket: "myapp-41a95.firebasestorage.app",
+  messagingSenderId: "1072576168299",
+  appId: "1:1072576168299:web:fe434c2cc9ee445f18cc2e",
+  measurementId: "G-1RS1ETT6KC"
+};
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* ---------- 2) Constants ---------- */
+const ADMIN_EMAIL = "admin@mtger.iq"; // فقط هذا الحساب يدخل لوحة التحكم
+
+/* ---------- 3) Global State ---------- */
+const state = {
+  user: null,
+  isAdmin: false,
+  cards: [],
+  proCards: [],
+  settings: { social: {} },
+};
+let adminActivePanel = "cards"; // cards | proCards | codes | users | settings
+let loginErrorMsg = "";          // رسالة خطأ تسجيل الدخول (تُقرأ عند إعادة الرسم)
+
+/* ---------- 4) Helpers ---------- */
+function $(sel, root = document) { return root.querySelector(sel); }
+function $all(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
+function el(html) {
+  const t = document.createElement("template");
+  t.innerHTML = html.trim();
+  return t.content.firstElementChild;
+}
+function escapeHtml(str = "") {
+  return String(str)
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+}
+function toast(message, type = "success") {
+  const wrap = $("#toastWrap");
+  const icon = type === "success" ? "✓" : type === "error" ? "✕" : "ℹ";
+  const node = el(`<div class="toast ${type}"><span class="toast-icon">${icon}</span><span>${escapeHtml(message)}</span></div>`);
+  wrap.appendChild(node);
+  setTimeout(() => { node.style.opacity = "0"; node.style.transition = ".3s"; setTimeout(() => node.remove(), 300); }, 3200);
+}
+function fmtDate(ts) {
+  if (!ts) return "—";
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString("ar-IQ", { year: "numeric", month: "short", day: "numeric" });
+}
+function daysLeft(expiryTs) {
+  if (!expiryTs) return 0;
+  const exp = expiryTs.toDate ? expiryTs.toDate() : new Date(expiryTs);
+  const diff = Math.ceil((exp - new Date()) / (1000 * 60 * 60 * 24));
+  return diff;
+}
+function isProActive(profile) {
+  if (!profile || !profile.proExpiresAt) return false;
+  return daysLeft(profile.proExpiresAt) > 0;
+}
+function genCode(len = 8) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+function isValidUrl(str) {
+  try { const u = new URL(str); return u.protocol === "http:" || u.protocol === "https:"; }
+  catch { return false; }
+}
+function authErrorMessage(err) {
+  const map = {
+    "auth/invalid-email": "البريد الإلكتروني غير صالح",
+    "auth/user-not-found": "لا يوجد حساب بهذا البريد",
+    "auth/wrong-password": "كلمة السر غير صحيحة",
+    "auth/invalid-credential": "بيانات الدخول غير صحيحة",
+    "auth/too-many-requests": "محاولات كثيرة، حاول لاحقًا",
+  };
+  return map[err.code] || "حدث خطأ، حاول مرة أخرى";
+}
+function hideLoader() {
+  const l = $("#pageLoader");
+  if (l) { l.style.opacity = "0"; setTimeout(() => l.remove(), 400); }
+}
+
+/* ---------- 5) Root render ---------- */
+function renderApp() {
+  const app = $("#app");
+  app.innerHTML = "";
+  if (state.user && state.isAdmin) {
+    app.appendChild(renderAdminPage());
+  } else {
+    app.appendChild(renderAdminLoginPage());
+  }
+}
+
+document.addEventListener("click", (e) => {
+  const closeBtn = e.target.closest("[data-close]");
+  if (closeBtn) $("#" + closeBtn.dataset.close)?.classList.remove("open");
+  if (e.target.classList.contains("modal-overlay")) e.target.classList.remove("open");
+});
+
+/* ---------- 6) Init sequence ---------- */
+let authReady = false;
+function maybeHideLoader() { if (authReady) hideLoader(); }
+
+/* Load global settings (لاستخدامها في تبويب الإعدادات) */
+db.collection("settings").doc("general").onSnapshot((snap) => {
+  state.settings = snap.exists ? snap.data() : { social: {} };
+  if (state.user && state.isAdmin && adminActivePanel === "settings") renderApp();
+}, (err) => console.error(err));
+
+/* Load home cards realtime */
+db.collection("cards").orderBy("order", "asc").onSnapshot((snap) => {
+  state.cards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  if (state.user && state.isAdmin) renderApp();
+}, (err) => console.error(err));
+
+/* Load pro cards realtime */
+db.collection("proCards").orderBy("order", "asc").onSnapshot((snap) => {
+  state.proCards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  if (state.user && state.isAdmin) renderApp();
+}, (err) => console.error(err));
+
+/* Auth state */
+auth.onAuthStateChanged((user) => {
+  state.user = user;
+  state.isAdmin = !!user && (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  renderApp();
+  authReady = true; maybeHideLoader();
+});
+
+/* =========================================================================
+   7) ADMIN LOGIN PAGE
+   ========================================================================= */
+function renderAdminLoginPage() {
+  const errMsg = loginErrorMsg;
+  loginErrorMsg = "";
+
+  const wrap = el(`
+    <div class="container section" style="max-width:420px;">
+      <div class="admin-card">
+        <h3 style="text-align:center; font-size:20px; margin-bottom:6px;">لوحة تحكم المصمم العراقي</h3>
+        <p class="text-center field-hint" style="margin-bottom:22px;">دخول مخصص للإدارة فقط</p>
+        <form id="adminLoginForm">
+          <div class="form-group">
+            <label>البريد الإلكتروني</label>
+            <input type="email" id="adminEmail" placeholder="admin@example.com" required>
+          </div>
+          <div class="form-group">
+            <label>كلمة السر</label>
+            <input type="password" id="adminPassword" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">دخول</button>
+        </form>
+        <p id="adminLoginMsg" class="field-error text-center mt-2">${escapeHtml(errMsg)}</p>
+      </div>
+    </div>
+  `);
+
+  wrap.querySelector("#adminLoginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = wrap.querySelector("#adminEmail").value.trim();
+    const password = wrap.querySelector("#adminPassword").value;
+    const msg = wrap.querySelector("#adminLoginMsg");
+    const btn = e.target.querySelector("button[type=submit]");
+    msg.textContent = "";
+    btn.disabled = true; btn.textContent = "جاري الدخول...";
+    try {
+      const cred = await auth.signInWithEmailAndPassword(email, password);
+      if ((cred.user.email || "").toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        loginErrorMsg = "هذا الحساب لا يملك صلاحية الوصول للوحة التحكم";
+        await auth.signOut(); // سيؤدي لإعادة رسم الصفحة وعرض loginErrorMsg تلقائيًا
+        return;
+      }
+      toast("مرحبًا بك في لوحة التحكم"); // onAuthStateChanged سيعرض الداشبورد تلقائيًا
+    } catch (err) {
+      msg.textContent = authErrorMessage(err);
+    } finally {
+      btn.disabled = false; btn.textContent = "دخول";
+    }
+  });
+
+  return wrap;
+}
+
+/* =========================================================================
+   8) ADMIN DASHBOARD
+   ========================================================================= */
+function renderAdminPage() {
+  const wrap = el(`
+    <div class="admin-shell">
+      <aside class="admin-sidebar" id="adminSidebar">
+        <div class="brand"><span class="brand-mark">عر</span> لوحة التحكم</div>
+        <a href="#" class="admin-nav-item" data-admin-panel="cards">🗂️ بطاقات الرئيسية</a>
+        <a href="#" class="admin-nav-item" data-admin-panel="proCards">⭐ بطاقات Pro</a>
+        <a href="#" class="admin-nav-item" data-admin-panel="codes">🎟️ أكواد الاشتراك</a>
+        <a href="#" class="admin-nav-item" data-admin-panel="users">👥 المستخدمون</a>
+        <a href="#" class="admin-nav-item" data-admin-panel="settings">⚙️ إعدادات الموقع</a>
+        <div style="flex:1;"></div>
+        <a href="index.html" class="admin-nav-item">🏠 رجوع للموقع</a>
+        <button class="admin-nav-item" id="adminLogoutBtn" style="width:100%; text-align:right;">🚪 تسجيل خروج</button>
+      </aside>
+      <div class="admin-main">
+        <div class="admin-topline">
+          <h1 id="adminPanelTitle">بطاقات الرئيسية</h1>
+          <button class="icon-btn" id="adminSidebarToggle" style="display:none;">☰</button>
+        </div>
+        <div class="stat-row" id="adminStats"></div>
+        <div id="adminPanelHost"></div>
+      </div>
+    </div>
+  `);
+
+  wrap.querySelectorAll("[data-admin-panel]").forEach(item => {
+    item.addEventListener("click", (e) => {
+      e.preventDefault();
+      adminActivePanel = item.dataset.adminPanel;
+      renderApp();
+    });
+  });
+  wrap.querySelector("#adminLogoutBtn").addEventListener("click", async () => {
+    await auth.signOut(); // onAuthStateChanged سيعرض صفحة الدخول تلقائيًا
+  });
+  wrap.querySelector("#adminSidebarToggle").addEventListener("click", () => {
+    wrap.querySelector("#adminSidebar").classList.toggle("open");
+  });
+
+  wrap.querySelectorAll(".admin-nav-item[data-admin-panel]").forEach(i => {
+    i.classList.toggle("active", i.dataset.adminPanel === adminActivePanel);
+  });
+
+  const titles = {
+    cards: "بطاقات الرئيسية", proCards: "بطاقات Pro", codes: "أكواد الاشتراك",
+    users: "المستخدمون", settings: "إعدادات الموقع",
+  };
+  wrap.querySelector("#adminPanelTitle").textContent = titles[adminActivePanel];
+
+  renderAdminStats(wrap.querySelector("#adminStats"));
+
+  const host = wrap.querySelector("#adminPanelHost");
+  if (adminActivePanel === "cards") host.appendChild(renderAdminCardsPanel("cards"));
+  if (adminActivePanel === "proCards") host.appendChild(renderAdminCardsPanel("proCards"));
+  if (adminActivePanel === "codes") host.appendChild(renderAdminCodesPanel());
+  if (adminActivePanel === "users") host.appendChild(renderAdminUsersPanel());
+  if (adminActivePanel === "settings") host.appendChild(renderAdminSettingsPanel());
+
+  return wrap;
+}
+
+function renderAdminStats(host) {
+  host.innerHTML = `
+    <div class="stat-card"><div class="label">بطاقات الرئيسية</div><div class="value">${state.cards.length}</div></div>
+    <div class="stat-card"><div class="label">بطاقات Pro</div><div class="value">${state.proCards.length}</div></div>
+    <div class="stat-card"><div class="label">أكواد غير مستخدمة</div><div class="value" id="statUnusedCodes">…</div></div>
+    <div class="stat-card"><div class="label">المستخدمون</div><div class="value" id="statUsers">…</div></div>
+  `;
+  db.collection("subscriptionCodes").where("usedBy", "==", null).get()
+    .then(s => { const node = $("#statUnusedCodes", host); if (node) node.textContent = s.size; })
+    .catch(() => {});
+  db.collection("users").get()
+    .then(s => { const node = $("#statUsers", host); if (node) node.textContent = s.size; })
+    .catch(() => {});
+}
+
+/* ---------- 8a) Admin: Cards Panel (مشترك بين البطاقات وبطاقات Pro) ---------- */
+function renderAdminCardsPanel(collectionName) {
+  const wrap = el(`<div></div>`);
+  const isPro = collectionName === "proCards";
+
+  wrap.appendChild(el(`
+    <div class="admin-card">
+      <h3>${isPro ? "إضافة بطاقة Pro جديدة" : "إضافة بطاقة جديدة"}</h3>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>العنوان</label>
+          <input type="text" id="cardTitle" placeholder="اسم الأداة">
+        </div>
+        <div class="form-group">
+          <label>رابط الصورة</label>
+          <input type="text" id="cardImage" placeholder="https://...">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>الوصف</label>
+        <textarea id="cardDesc" placeholder="وصف قصير عن الأداة"></textarea>
+      </div>
+      <div class="form-group">
+        <label>رابط الاستخدام (يفتح عند الضغط على زر "استخدام")</label>
+        <input type="text" id="cardLink" placeholder="https://...">
+      </div>
+      <button class="btn btn-primary" id="addCardBtn">إضافة البطاقة</button>
+    </div>
+    <div class="admin-table-wrap">
+      <table>
+        <thead><tr><th>الصورة</th><th>العنوان</th><th>الوصف</th><th>الرابط</th><th>الترتيب</th><th>إجراءات</th></tr></thead>
+        <tbody id="cardsTableBody"></tbody>
+      </table>
+    </div>
+  `));
+
+  wrap.querySelector("#addCardBtn").addEventListener("click", async (e) => {
+    const btn = e.target;
+    const title = wrap.querySelector("#cardTitle").value.trim();
+    const imageUrl = wrap.querySelector("#cardImage").value.trim();
+    const description = wrap.querySelector("#cardDesc").value.trim();
+    const linkUrl = wrap.querySelector("#cardLink").value.trim();
+
+    if (!title || !linkUrl) { toast("العنوان ورابط الاستخدام مطلوبان", "error"); return; }
+    if (!isValidUrl(linkUrl)) { toast("رابط الاستخدام غير صالح", "error"); return; }
+    if (imageUrl && !isValidUrl(imageUrl)) { toast("رابط الصورة غير صالح", "error"); return; }
+
+    btn.disabled = true; btn.textContent = "جاري الإضافة...";
+    try {
+      const list = isPro ? state.proCards : state.cards;
+      const maxOrder = list.reduce((m, c) => Math.max(m, c.order || 0), 0);
+      await db.collection(collectionName).add({
+        title, imageUrl, description, linkUrl,
+        order: maxOrder + 1,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      toast("تمت إضافة البطاقة بنجاح");
+      ["#cardTitle", "#cardImage", "#cardDesc", "#cardLink"].forEach(s => wrap.querySelector(s).value = "");
+    } catch (err) {
+      console.error(err);
+      toast("تعذرت إضافة البطاقة", "error");
+    } finally {
+      btn.disabled = false; btn.textContent = "إضافة البطاقة";
+    }
+  });
+
+  const tbody = wrap.querySelector("#cardsTableBody");
+  const list = isPro ? state.proCards : state.cards;
+  if (list.length === 0) {
+    tbody.appendChild(el(`<tr><td colspan="6" class="text-center" style="color:var(--text-faint); padding:30px;">لا توجد بطاقات بعد</td></tr>`));
+  } else {
+    list.forEach(card => {
+      const row = el(`
+        <tr>
+          <td><img src="${escapeHtml(card.imageUrl || 'https://api.dicebear.com/7.x/shapes/svg?seed=x')}" alt=""></td>
+          <td>${escapeHtml(card.title || "")}</td>
+          <td style="max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(card.description || "")}</td>
+          <td style="max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><a href="${escapeHtml(card.linkUrl)}" target="_blank" style="color:var(--blue);">${escapeHtml(card.linkUrl || "")}</a></td>
+          <td>${card.order ?? "—"}</td>
+          <td>
+            <div class="table-actions">
+              <button class="mini-btn" data-edit-card="${card.id}" title="تعديل">✎</button>
+              <button class="mini-btn" data-delete-card="${card.id}" title="حذف">🗑</button>
+            </div>
+          </td>
+        </tr>
+      `);
+      tbody.appendChild(row);
+    });
+  }
+
+  tbody.querySelectorAll("[data-delete-card]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("هل تريد حذف هذه البطاقة؟")) return;
+      try {
+        await db.collection(collectionName).doc(btn.dataset.deleteCard).delete();
+        toast("تم حذف البطاقة");
+      } catch (err) { toast("تعذر الحذف", "error"); }
+    });
+  });
+
+  tbody.querySelectorAll("[data-edit-card]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const card = list.find(c => c.id === btn.dataset.editCard);
+      if (card) openEditCardModal(collectionName, card);
+    });
+  });
+
+  return wrap;
+}
+
+function openEditCardModal(collectionName, card) {
+  const overlayId = "editCardModal";
+  let overlay = document.getElementById(overlayId);
+  if (overlay) overlay.remove();
+
+  overlay = el(`
+    <div class="modal-overlay open" id="${overlayId}">
+      <div class="modal-box">
+        <div class="modal-head"><h3>تعديل البطاقة</h3><button class="modal-close" id="closeEditCard">✕</button></div>
+        <div class="form-group"><label>العنوان</label><input type="text" id="editCardTitle" value="${escapeHtml(card.title || "")}"></div>
+        <div class="form-group"><label>رابط الصورة</label><input type="text" id="editCardImage" value="${escapeHtml(card.imageUrl || "")}"></div>
+        <div class="form-group"><label>الوصف</label><textarea id="editCardDesc">${escapeHtml(card.description || "")}</textarea></div>
+        <div class="form-group"><label>رابط الاستخدام</label><input type="text" id="editCardLink" value="${escapeHtml(card.linkUrl || "")}"></div>
+        <div class="form-group"><label>الترتيب</label><input type="number" id="editCardOrder" value="${card.order || 0}"></div>
+        <button class="btn btn-primary btn-block" id="saveEditCard">حفظ التعديلات</button>
+      </div>
+    </div>
+  `);
+  document.body.appendChild(overlay);
+
+  overlay.querySelector("#closeEditCard").addEventListener("click", () => overlay.remove());
+  overlay.querySelector("#saveEditCard").addEventListener("click", async (e) => {
+    const btn = e.target;
+    const title = overlay.querySelector("#editCardTitle").value.trim();
+    const imageUrl = overlay.querySelector("#editCardImage").value.trim();
+    const description = overlay.querySelector("#editCardDesc").value.trim();
+    const linkUrl = overlay.querySelector("#editCardLink").value.trim();
+    const order = Number(overlay.querySelector("#editCardOrder").value) || 0;
+
+    if (!title || !linkUrl) { toast("العنوان والرابط مطلوبان", "error"); return; }
+    if (!isValidUrl(linkUrl) || (imageUrl && !isValidUrl(imageUrl))) { toast("تحقق من صحة الروابط", "error"); return; }
+
+    btn.disabled = true; btn.textContent = "جاري الحفظ...";
+    try {
+      await db.collection(collectionName).doc(card.id).update({ title, imageUrl, description, linkUrl, order });
+      toast("تم حفظ التعديلات");
+      overlay.remove();
+    } catch (err) {
+      toast("تعذر الحفظ", "error");
+      btn.disabled = false; btn.textContent = "حفظ التعديلات";
+    }
+  });
+}
+
+/* ---------- 8b) Admin: Subscription Codes Panel ---------- */
+function renderAdminCodesPanel() {
+  const wrap = el(`
+    <div>
+      <div class="admin-card">
+        <h3>توليد كود اشتراك جديد</h3>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>مدة الاشتراك (بالأيام)</label>
+            <input type="number" id="codeDuration" value="30" min="1">
+          </div>
+          <div class="form-group">
+            <label>تخصيص الكود لبريد معيّن (اختياري)</label>
+            <input type="email" id="codeAssignedEmail" placeholder="example@email.com">
+          </div>
+        </div>
+        <button class="btn btn-primary" id="generateCodeBtn">توليد كود جديد</button>
+      </div>
+      <div class="admin-table-wrap">
+        <table>
+          <thead><tr><th>الكود</th><th>المدة</th><th>مخصص لـ</th><th>الحالة</th><th>استُخدم من</th><th>تاريخ الإنشاء</th><th></th></tr></thead>
+          <tbody id="codesTableBody"><tr><td colspan="7" class="text-center" style="padding:24px; color:var(--text-faint);">جاري التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  `);
+
+  wrap.querySelector("#generateCodeBtn").addEventListener("click", async (e) => {
+    const btn = e.target;
+    const durationDays = Number(wrap.querySelector("#codeDuration").value) || 30;
+    const assignedTo = wrap.querySelector("#codeAssignedEmail").value.trim() || null;
+
+    btn.disabled = true; btn.textContent = "جاري التوليد...";
+    try {
+      const code = genCode(8);
+      await db.collection("subscriptionCodes").doc(code).set({
+        durationDays, assignedTo,
+        usedBy: null, usedByUid: null, usedAt: null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      toast(`تم توليد الكود: ${code}`);
+      wrap.querySelector("#codeAssignedEmail").value = "";
+      loadCodesTable(wrap);
+    } catch (err) {
+      console.error(err);
+      toast("تعذر توليد الكود", "error");
+    } finally {
+      btn.disabled = false; btn.textContent = "توليد كود جديد";
+    }
+  });
+
+  loadCodesTable(wrap);
+  return wrap;
+}
+
+async function loadCodesTable(wrap) {
+  const tbody = wrap.querySelector("#codesTableBody");
+  try {
+    const snap = await db.collection("subscriptionCodes").orderBy("createdAt", "desc").limit(100).get();
+    tbody.innerHTML = "";
+    if (snap.empty) {
+      tbody.appendChild(el(`<tr><td colspan="7" class="text-center" style="padding:24px; color:var(--text-faint);">لا توجد أكواد بعد</td></tr>`));
+      return;
+    }
+    snap.forEach(doc => {
+      const d = doc.data();
+      const status = d.usedBy
+        ? `<span class="badge gray">مستخدم</span>`
+        : `<span class="badge green">متاح</span>`;
+      const row = el(`
+        <tr>
+          <td><span class="code-pill">${escapeHtml(doc.id)}</span></td>
+          <td>${d.durationDays} يوم</td>
+          <td>${escapeHtml(d.assignedTo || "أي مستخدم")}</td>
+          <td>${status}</td>
+          <td>${escapeHtml(d.usedBy || "—")}</td>
+          <td>${fmtDate(d.createdAt)}</td>
+          <td><button class="mini-btn" data-delete-code="${doc.id}" title="حذف">🗑</button></td>
+        </tr>
+      `);
+      tbody.appendChild(row);
+    });
+    tbody.querySelectorAll("[data-delete-code]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("حذف هذا الكود؟")) return;
+        await db.collection("subscriptionCodes").doc(btn.dataset.deleteCode).delete();
+        toast("تم حذف الكود");
+        loadCodesTable(wrap);
+      });
+    });
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="padding:24px; color:var(--text-faint);">تعذر تحميل الأكواد</td></tr>`;
+  }
+}
+
+/* ---------- 8c) Admin: Users Panel ---------- */
+function renderAdminUsersPanel() {
+  const wrap = el(`
+    <div class="admin-table-wrap">
+      <table>
+        <thead><tr><th>الصورة</th><th>الاسم</th><th>البريد</th><th>اسم المستخدم</th><th>حالة Pro</th><th>تاريخ التسجيل</th><th>إجراءات</th></tr></thead>
+        <tbody id="usersTableBody"><tr><td colspan="7" class="text-center" style="padding:24px; color:var(--text-faint);">جاري التحميل...</td></tr></tbody>
+      </table>
+    </div>
+  `);
+  loadUsersTable(wrap);
+  return wrap;
+}
+
+async function loadUsersTable(wrap) {
+  const tbody = wrap.querySelector("#usersTableBody");
+  try {
+    const snap = await db.collection("users").orderBy("createdAt", "desc").limit(200).get();
+    tbody.innerHTML = "";
+    if (snap.empty) {
+      tbody.appendChild(el(`<tr><td colspan="7" class="text-center" style="padding:24px; color:var(--text-faint);">لا يوجد مستخدمون بعد</td></tr>`));
+      return;
+    }
+    snap.forEach(doc => {
+      const u = doc.data();
+      const active = isProActive(u);
+      const photo = u.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.name || "U")}`;
+      const proBadge = active
+        ? `<span class="badge gold">PRO (${daysLeft(u.proExpiresAt)} يوم)</span>`
+        : `<span class="badge gray">عادي</span>`;
+      const row = el(`
+        <tr>
+          <td><img src="${escapeHtml(photo)}" alt=""></td>
+          <td>${escapeHtml(u.name || "—")}</td>
+          <td>${escapeHtml(u.email || "—")}</td>
+          <td>${escapeHtml(u.username || "—")}</td>
+          <td>${proBadge}</td>
+          <td>${fmtDate(u.createdAt)}</td>
+          <td>
+            <div class="table-actions">
+              <button class="mini-btn" data-grant-pro="${doc.id}" title="منح/تمديد 30 يوم Pro">⭐</button>
+              <button class="mini-btn" data-revoke-pro="${doc.id}" title="إلغاء Pro">✕</button>
+            </div>
+          </td>
+        </tr>
+      `);
+      tbody.appendChild(row);
+    });
+
+    tbody.querySelectorAll("[data-grant-pro]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const uid = btn.dataset.grantPro;
+        const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        await db.collection("users").doc(uid).update({ proExpiresAt: firebase.firestore.Timestamp.fromDate(newExpiry) });
+        toast("تم منح 30 يوم Pro");
+        loadUsersTable(wrap);
+      });
+    });
+    tbody.querySelectorAll("[data-revoke-pro]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("إلغاء اشتراك Pro لهذا المستخدم؟")) return;
+        const uid = btn.dataset.revokePro;
+        await db.collection("users").doc(uid).update({ proExpiresAt: null });
+        toast("تم إلغاء اشتراك Pro");
+        loadUsersTable(wrap);
+      });
+    });
+  } catch (err) {
+    console.error(err);
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="padding:24px; color:var(--text-faint);">تعذر تحميل المستخدمين</td></tr>`;
+  }
+}
+
+/* ---------- 8d) Admin: Settings Panel (روابط السوشال + الفوتر) ---------- */
+function renderAdminSettingsPanel() {
+  const s = state.settings.social || {};
+  const wrap = el(`
+    <div class="admin-card">
+      <h3>روابط التواصل الاجتماعي (تظهر أسفل الموقع)</h3>
+      <div class="form-group"><label>📷 رابط Instagram</label><input type="text" id="setInstagram" value="${escapeHtml(s.instagram || "")}" placeholder="https://instagram.com/..."></div>
+      <div class="form-group"><label>🎵 رابط TikTok</label><input type="text" id="setTiktok" value="${escapeHtml(s.tiktok || "")}" placeholder="https://tiktok.com/@..."></div>
+      <div class="form-group"><label>✈️ رابط Telegram</label><input type="text" id="setTelegram" value="${escapeHtml(s.telegram || "")}" placeholder="https://t.me/..."></div>
+      <button class="btn btn-primary" id="saveSettingsBtn">حفظ الإعدادات</button>
+    </div>
+  `);
+
+  wrap.querySelector("#saveSettingsBtn").addEventListener("click", async (e) => {
+    const btn = e.target;
+    const instagram = wrap.querySelector("#setInstagram").value.trim();
+    const tiktok = wrap.querySelector("#setTiktok").value.trim();
+    const telegram = wrap.querySelector("#setTelegram").value.trim();
+
+    for (const v of [instagram, tiktok, telegram]) {
+      if (v && !isValidUrl(v)) { toast("تحقق من صحة الروابط المدخلة", "error"); return; }
+    }
+
+    btn.disabled = true; btn.textContent = "جاري الحفظ...";
+    try {
+      await db.collection("settings").doc("general").set({ social: { instagram, tiktok, telegram } }, { merge: true });
+      toast("تم حفظ الإعدادات بنجاح");
+    } catch (err) {
+      console.error(err);
+      toast("تعذر حفظ الإعدادات", "error");
+    } finally {
+      btn.disabled = false; btn.textContent = "حفظ الإعدادات";
+    }
+  });
+
+  return wrap;
+}
+</script>
+</body>
+</html>
